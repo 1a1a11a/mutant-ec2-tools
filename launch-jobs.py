@@ -963,7 +963,7 @@ def Job_UnmodifiedRocksDBLatencyByMemorySizes():
 
 
 
-# def Job_MutantLatencyByMemorySizesJason():
+# def Job_UnmodifiedLatencyByMemorySizesJason():
 #   class Conf:
 #     exp_per_ec2inst = 2
 #     def __init__(self, stg_dev):
@@ -1075,9 +1075,9 @@ def Job_UnmodifiedRocksDBLatencyByMemorySizes():
 
 def Job_MutantLatencyByMemorySizesJason():
   class Conf:
-    exp_per_ec2inst = 8
-    def __init__(self, stg_dev):
-      self.stg_dev = stg_dev
+    exp_per_ec2inst = 4
+    def __init__(self, slow_dev):
+      self.slow_dev = slow_dev
       self.mem_sizes = []
     def Full(self):
       return (len(self.mem_sizes) >= Conf.exp_per_ec2inst)
@@ -1086,51 +1086,30 @@ def Job_MutantLatencyByMemorySizesJason():
     def Size(self):
       return len(self.mem_sizes)
     def __repr__(self):
-      return "(%s, %s)" % (self.stg_dev, self.mem_sizes)
+      return "(%s, %s)" % (self.slow_dev, self.mem_sizes)
 
   # The lower bound without getting the system overloaded are different for
   # different storage devices.  local-ssd1 and ebs-gp2 have 14, which is 1.4GB,
   # which the range() function sets the lower bound as 12. They are capped by
   # the main memory. OOM killer.  ebs-st1 can go 1.6GB without the storage
   # device overloaded, ebs-sc1 2.0GB.
-  num_exp_per_conf = 5
+  num_exp_per_conf = 1
+  BASE_MEMORY_SIZE = 2.3 
   confs = []
-  for stg_dev in ["local-ssd1", "ebs-gp2"]:
-    conf = Conf(stg_dev)
+  for slow_dev in ["ebs-gp2", "ebs-st1", "ebs-sc1"]:
+    conf = Conf(slow_dev)
     for j in range(num_exp_per_conf):
-      for i in range(30, 12, -2):
+      # when record size is 1KB, the data size is 2.3GB, so 
+      # we set size to 2.3*2, 2.3*.1.5, 2.3*1.2, 2.3, 2.3*0.9, 2.3*0.8, 2.3*0.7, 2.3*0.6, 2.3*0.5   
+      # for i in [2, 1.5, 1.2, 1, 0.9, 0.8, 0.7, 0.6, 0.5]:
+      for i in [2, 1, 0.6]:
         if conf.Full():
           confs.append(conf)
-          conf = Conf(stg_dev)
-        conf.Add(i/10.0)
+          conf = Conf(slow_dev)
+        conf.Add(i*BASE_MEMORY_SIZE)
     if conf.Size() > 0:
       confs.append(conf)
 
-  stg_dev = "ebs-st1"
-  conf = Conf(stg_dev)
-  for j in range(num_exp_per_conf):
-    for i in range(30, 14, -2):
-      if conf.Full():
-        confs.append(conf)
-        conf = Conf(stg_dev)
-      conf.Add(i/10.0)
-  if conf.Size() > 0:
-    confs.append(conf)
-
-  stg_dev = "ebs-sc1"
-  conf = Conf(stg_dev)
-  for j in range(num_exp_per_conf):
-    for i in range(30, 18, -2):
-      if conf.Full():
-        confs.append(conf)
-        conf = Conf(stg_dev)
-      conf.Add(i/10.0)
-  if conf.Size() > 0:
-    confs.append(conf)
-
-  # Patch a missed experiment
-  #confs[18].mem_sizes = confs[18].mem_sizes[4:]
-  #confs = confs[18:19]
 
   Cons.P("%d machines" % len(confs))
   Cons.P(pprint.pformat(confs, width=100))
@@ -1143,8 +1122,8 @@ def Job_MutantLatencyByMemorySizesJason():
         , "inst_type": "c3.2xlarge"
         , "spot_req_max_price": 1.0
         # RocksDB can use the same AMI
-        , "init_script": "mutant-cassandra-server-dev"
-        , "ami_name": "mutant-cassandra-server"
+        , "init_script": "mutant-rocksDB-1a1a11a"
+        , "ami_name": "mutant-rocksdb"
         , "block_storage_devs": []
         , "unzip_quizup_data": "true"
         , "run_cassandra_server": "false"
@@ -1153,19 +1132,19 @@ def Job_MutantLatencyByMemorySizesJason():
         , "rocksdb-quizup-runs": []
         , "terminate_inst_when_done": "true"
         }
-    if conf.stg_dev == "local-ssd1":
+    if conf.slow_dev == "local-ssd1":
       pass
-    elif conf.stg_dev == "ebs-gp2":
+    elif conf.slow_dev == "ebs-gp2":
       params["block_storage_devs"].append({"VolumeType": "gp2", "VolumeSize": 1000, "DeviceName": "d"})
-    elif conf.stg_dev == "ebs-st1":
+    elif conf.slow_dev == "ebs-st1":
       params["block_storage_devs"].append({"VolumeType": "st1", "VolumeSize": 3000, "DeviceName": "e"})
-    elif conf.stg_dev == "ebs-sc1":
+    elif conf.slow_dev == "ebs-sc1":
       params["block_storage_devs"].append({"VolumeType": "sc1", "VolumeSize": 3000, "DeviceName": "f"})
     else:
       raise RuntimeError("Unexpected")
 
     p1 = { \
-        "exp_desc": inspect.currentframe().f_code.co_name[4:]
+        "exp_desc": "this is the mutant memSize experiments %s" %inspect.currentframe().f_code.co_name[4:]
         , "fast_dev_path": "/mnt/local-ssd1/rocksdb-data"
         , "slow_dev_paths": {"t1": "/mnt/%s/rocksdb-data-quizup-t1" % conf.slow_dev}
         , "db_path": "/mnt/local-ssd1/rocksdb-data/quizup"
