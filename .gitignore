@@ -1,3 +1,2 @@
-/.run
-/.log
-*.pyc
+*DS_Store*
+

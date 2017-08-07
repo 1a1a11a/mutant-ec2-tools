@@ -376,7 +376,9 @@ def RunRocksDBQuizup():
 				params1.append("--simulation_time_dur_in_sec=%s" % params["simulation_time_dur_in_sec"])
 			if "sst_migration_temperature_threshold" in params:
 				params1.append("--sst_migration_temperature_threshold=%s" % params["sst_migration_temperature_threshold"])
-
+			if "record_size" in params:
+				params1.append("--record_size=%s" % params["record_size"])
+				
 			cmd = "cd %s/work/mutant/misc/rocksdb/quizup && stdbuf -i0 -o0 -e0 ./run.py %s" \
 					% (os.path.expanduser("~"), " ".join(params1))
 			Util.RunSubp(cmd)
