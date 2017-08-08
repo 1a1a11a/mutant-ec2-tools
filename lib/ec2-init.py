@@ -102,10 +102,10 @@ def main(argv):
 		raise RuntimeError("Usage: %s base64_zlib_json_encoded_params" % argv[0])
 
 	# Edit the git source repository for easy development.
-	Util.RunSubp("sed -i 's/" \
-			"^\\turl = https:\\/\\/github.com\\/hobinyoon\\/mutant-ec2-tools.git" \
-			"/\\turl = git@github.com:hobinyoon\/mutant-ec2-tools.git" \
-			"/g' %s" % "~/work/mutant/ec2-tools/.git/config")
+	# Util.RunSubp("sed -i 's/" \
+	# 		"^\\turl = https:\\/\\/github.com\\/hobinyoon\\/mutant-ec2-tools.git" \
+	# 		"/\\turl = git@github.com:hobinyoon\/mutant-ec2-tools.git" \
+	# 		"/g' %s" % "~/work/mutant/ec2-tools/.git/config")
 
 	_LogInstInfo()
 	_RunInitScript(argv[1])
