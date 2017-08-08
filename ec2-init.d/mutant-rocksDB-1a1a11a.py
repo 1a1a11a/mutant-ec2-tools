@@ -118,7 +118,7 @@ def PrepareBlockDevs():
 			# 81908+0 records out
 			# 85886763008 bytes (86 GB) copied, 1631.16 s, 52.7 MB/s
 			# 1683187 ms = 28 mins
-			# Util.RunSubp("sudo sh -c \"dd if=/dev/zero bs=1M count=81908 | tee /dev/xvdb > /dev/xvdc\"", measure_time=True)
+			Util.RunSubp("sudo sh -c \"dd if=/dev/zero bs=1M count=81908 | tee /dev/xvdb > /dev/xvdc\"", measure_time=True)
 
 			#
 			# sudo dd if=/dev/zero bs=1M of=/dev/xvdb || true
