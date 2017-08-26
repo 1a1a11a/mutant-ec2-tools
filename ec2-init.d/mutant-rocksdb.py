@@ -256,23 +256,23 @@ def _CloneAndBuildRocksDb():
   with Cons.MT("Cloning RocksDB src and build ..."):
     # Git clone
     Util.RunSubp("rm -rf /mnt/local-ssd0/mutant/rocksdb")
-    # Util.RunSubp("git clone https://github.com/hobinyoon/rocksdb /mnt/local-ssd0/mutant/rocksdb")
-    Util.RunSubp("git clone https://github.com/1a1a11a/rocksdb /mnt/local-ssd0/mutant/rocksdb")
+    Util.RunSubp("git clone https://github.com/hobinyoon/rocksdb /mnt/local-ssd0/mutant/rocksdb")
+    # Util.RunSubp("git clone https://github.com/1a1a11a/rocksdb /mnt/local-ssd0/mutant/rocksdb")
 
     # Symlink
     Util.RunSubp("rm -rf /home/ubuntu/work/mutant/rocksdb")
     Util.RunSubp("ln -s /mnt/local-ssd0/mutant/rocksdb /home/ubuntu/work/mutant/rocksdb")
 
     # Edit the git source repository for easy development.
-    # Util.RunSubp("sed -i 's/" \
-    #     "^\\turl = https:\\/\\/github.com\\/hobinyoon\\/rocksdb" \
-    #     "/\\turl = git@github.com:hobinyoon\/rocksdb.git" \
-    #     "/g' %s" % "~/work/mutant/rocksdb/.git/config")
-
     Util.RunSubp("sed -i 's/" \
-        "^\\turl = https:\\/\\/github.com\\/1a1a11a\\/rocksdb" \
-        "/\\turl = git@github.com:1a1a11a\/rocksdb.git" \
+        "^\\turl = https:\\/\\/github.com\\/hobinyoon\\/rocksdb" \
+        "/\\turl = git@github.com:hobinyoon\/rocksdb.git" \
         "/g' %s" % "~/work/mutant/rocksdb/.git/config")
+
+    # Util.RunSubp("sed -i 's/" \
+    #     "^\\turl = https:\\/\\/github.com\\/1a1a11a\\/rocksdb" \
+    #     "/\\turl = git@github.com:1a1a11a\/rocksdb.git" \
+    #     "/g' %s" % "~/work/mutant/rocksdb/.git/config")
 
     # Switch to the mutant branch
     Util.RunSubp("cd /home/ubuntu/work/mutant/rocksdb" \
