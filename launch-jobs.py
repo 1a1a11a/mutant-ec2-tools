@@ -44,9 +44,7 @@ def main(argv):
   globals()[job]()
 
 
-<<<<<<< HEAD
-def Job_2LevelMutantStorageUsageBySstMigTempThresholds():
-=======
+
 # A workload type per an EC2 instance for now, but nothing's stopping you running different types of workloads in an instance.
 def Job_Ycsb_D_Mutant():
   # Job conf per EC2 inst
@@ -474,9 +472,7 @@ def Job_QuizupMutantSlaAdmin():
       }
   LaunchJob(params)
 
-
 def Job_Quizup2LevelMutantStorageUsageBySstMigTempThresholds():
->>>>>>> c7f86756823ce56262b7fc6efdcc5346aa55f7b8
   class Conf:
     exp_per_ec2inst = 1
     def __init__(self, slow_dev):
@@ -1695,6 +1691,133 @@ def Job_MutantLatencyByRecordSizesJason():
       p1["record_size"] = rs 
       params["rocksdb-quizup-runs"].append(dict(p1))
     LaunchJob(params)
+
+
+
+def Job_Ycsb_Test():
+  # Job conf per EC2 inst
+  class ConfEc2Inst:
+    exp_per_ec2inst = 1
+
+    def __init__(self):
+      self.params = []
+    def Full(self):
+      return (len(self.params) >= ConfEc2Inst.exp_per_ec2inst)
+    def Add(self, params):
+      self.params.append(params)
+    def Size(self):
+      return len(self.params)
+    def __repr__(self):
+      return "%s" % (self.params)
+
+  workload_type = "a"
+
+  db_stg_dev = "ebs-st1"
+  #db_stg_dev = "local-ssd1"
+
+  if db_stg_dev == "local-ssd1":
+    target_iops_range = [20000]
+  elif db_stg_dev == "ebs-st1":
+    target_iops_range = [800]
+  random.shuffle(target_iops_range)
+
+  confs_ec2 = []
+  conf_ec2 = ConfEc2Inst()
+  for i in range(1):
+    for ti in target_iops_range:
+      if conf_ec2.Full():
+        confs_ec2.append(conf_ec2)
+        conf_ec2 = ConfEc2Inst()
+      conf_ec2.Add(ti)
+  if conf_ec2.Size() > 0:
+    confs_ec2.append(conf_ec2)
+
+  Cons.P("%d machine(s)" % len(confs_ec2))
+  Cons.P(pprint.pformat(confs_ec2, width=100))
+
+  for conf_ec2 in confs_ec2:
+    params = { \
+        # us-east-1, which is where the S3 buckets for experiment are.
+        "region": "us-east-1"
+        , "inst_type": "c3.2xlarge"
+        , "spot_req_max_price": 1.0
+        , "init_script": "mutant-rocksdb"
+        , "ami_name": "mutant-rocksdb"
+        , "block_storage_devs": []
+        , "ec2_tag_Name": inspect.currentframe().f_code.co_name[4:]
+        # Initialize local SSD by erasing. Some EC2 instance types need this.
+        , "erase_local_ssd": "true"
+        , "unzip_quizup_data": "false"
+        , "run_cassandra_server": "false"
+        , "rocksdb": {}  # This doesn't do much other than checking out the code and building.
+        , "rocksdb-quizup-runs": []
+        , "ycsb-runs": []
+        , "terminate_inst_when_done": "true"
+        }
+    if db_stg_dev == "ebs-st1":
+      # 40 MiB/s/TiB. With 3 TiB, 120 MiB/sec.
+      params["block_storage_devs"].append({"VolumeType": "st1", "VolumeSize": 3000, "DeviceName": "e"})
+    elif db_stg_dev == "local-ssd1":
+      pass
+    else:
+      raise RuntimeError("Unexpected")
+
+    ycsb_runs = {
+      "exp_desc": inspect.currentframe().f_code.co_name[4:]
+      , "workload_type": workload_type
+      , "db_path": "/mnt/%s/rocksdb-data/ycsb" % db_stg_dev
+      , "db_stg_dev_paths": [
+          "/mnt/%s/rocksdb-data/ycsb/t0" % db_stg_dev]
+      , "runs": []
+      }
+
+    for target_iops in conf_ec2.params:
+      op_cnt = 10000000 / 2
+      if target_iops < 10000:
+        op_cnt = op_cnt / 10
+      ycsb_runs["runs"].append({
+        # The load phase needs to be slow. Otherwise, the SSTables get too big. Probably because of the pending compactions,
+        #   which will affect the performance of in the run phase.
+        #   However, with a slow loading like with -target 10000, it takes 16 mins.
+        # Decided to keep the DB image in S3. Takes about 1 min to sync.
+        "load": {
+          #"use_preloaded_db": ""
+          # This can be used for any devices. Now the name is misleading, but ok.
+          "use_preloaded_db": "ycsb-%s-10M-records-rocksdb" % workload_type
+          , "ycsb_params": " -p recordcount=10000000 -target 10000"
+          }
+        # How long it takes when the system gets saturated.
+        #   Without memory throttling, 10M reqs: 101 sec.
+        #                              30M reqs: 248 sec
+        #   With a 4GB memory throttling, 10M reqs: 119 sec. Not a lot of difference. Hmm.
+        #                                 30M reqs: 305 sec. Okay.
+        #
+        # 11G of data. With 5GB, JVM seems to be doing just fine.
+        # Out of the 30M operations, 0.95 of them are reads; 0.05 are writes.
+        #   With the raw latency logging, YCSB hogs more memory: it keeps the data in memory.
+        , "run": {
+          "evict_cached_data": "true"
+          , "memory_limit_in_mb": 5.0 * 1024
+          # Mutant doesn't trigger any of these by default: it behaves like unmodified RocksDB.
+          , "ycsb_params": " -p recordcount=10000000 -p operationcount=%s -p readproportion=0.95 -p insertproportion=0.05 -target %d" % (op_cnt, target_iops)
+          }
+        , "mutant_options": {
+          "monitor_temp": "false"
+          , "migrate_sstables": "false"
+          , "sst_ott": 0
+          , "cache_filter_index_at_all_levels": "false"
+          # Replaying a workload in the past
+          #, "replaying": {
+          #  "simulated_time_dur_sec": 1365709.587
+          #  , "simulation_time_dur_sec": 60000
+          #  }
+          , "db_stg_dev_paths": ycsb_runs["db_stg_dev_paths"]
+          }
+        })
+
+    params["ycsb-runs"] = dict(ycsb_runs)
+    LaunchJob(params)
+
 
 
 
