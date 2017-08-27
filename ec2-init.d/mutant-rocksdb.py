@@ -119,7 +119,7 @@ def PrepareBlockDevs():
         # 1683187 ms = 28 mins
          
         # temporary comment for fast debuging 
-        # Util.RunSubp("sudo sh -c \"dd if=/dev/zero bs=1M count=81908 | tee /dev/xvdb > /dev/xvdc\"", measure_time=True)
+        Util.RunSubp("sudo sh -c \"dd if=/dev/zero bs=1M count=81908 | tee /dev/xvdb > /dev/xvdc\"", measure_time=True)
 
       #
       # sudo dd if=/dev/zero bs=1M of=/dev/xvdb || true
