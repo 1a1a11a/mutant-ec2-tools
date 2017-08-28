@@ -46,7 +46,7 @@ def main(argv):
 
 
 # A workload type per an EC2 instance for now, but nothing's stopping you running different types of workloads in an instance.
-def Job_Ycsb_D_Mutant():
+def Job_Ycsb_Mutant():
   # Job conf per EC2 inst
   class ConfEc2Inst:
     exp_per_ec2inst = 31
@@ -62,7 +62,7 @@ def Job_Ycsb_D_Mutant():
     def __repr__(self):
       return "%s" % (self.params)
 
-  workload_type = "d"
+  workload_type = "a"
   slow_stg_dev = "ebs-st1"
 
   # SSTable OTT (organization temperature threshold)
@@ -85,7 +85,7 @@ def Job_Ycsb_D_Mutant():
 
   confs_ec2 = []
   conf_ec2 = ConfEc2Inst()
-  for i in range(5):
+  for i in range(4):
     for sst_ott, targetiops in sorted(sstott_targetiops.iteritems()):
       for ti in targetiops:
         if conf_ec2.Full():
@@ -96,8 +96,8 @@ def Job_Ycsb_D_Mutant():
     confs_ec2.append(conf_ec2)
 
   Cons.P("%d machine(s)" % len(confs_ec2))
+  # sys.exit(1)
   Cons.P(pprint.pformat(confs_ec2, width=100))
-  sys.exit(1)
 
   for conf_ec2 in confs_ec2:
     params = { \
@@ -108,7 +108,7 @@ def Job_Ycsb_D_Mutant():
         , "init_script": "mutant-rocksdb"
         , "ami_name": "mutant-rocksdb"
         , "block_storage_devs": []
-        , "ec2_tag_Name": inspect.currentframe().f_code.co_name[4:]
+        , "ec2_tag_Name": inspect.currentframe().f_code.co_name[4:] + "-workload" + workload_type + "-stg_" + slow_stg_dev 
         # Initialize local SSD by erasing. Some EC2 instance types need this.
         , "erase_local_ssd": "true"
         , "unzip_quizup_data": "false"
@@ -157,7 +157,8 @@ def Job_Ycsb_D_Mutant():
         , "run": {
           "evict_cached_data": "true"
           , "memory_limit_in_mb": 5.0 * 1024
-          , "ycsb_params": " -p recordcount=10000000 -p operationcount=%d -p readproportion=0.95 -p insertproportion=0.05 -target %d" % (op_cnt, target_iops)
+          # , "ycsb_params": " -p recordcount=10000000 -p operationcount=%d -p readproportion=0.95 -p insertproportion=0.05 -target %d" % (op_cnt, target_iops)
+          , "ycsb_params": " -p recordcount=10000000 -p operationcount=%d -target %d" % (op_cnt, target_iops)
           }
         # Mutant doesn't trigger any of these by default: it behaves like unmodified RocksDB.
         , "mutant_options": {
@@ -178,10 +179,10 @@ def Job_Ycsb_D_Mutant():
     LaunchJob(params)
 
 
-def Job_Ycsb_A_Rocksdb():
+def Job_Ycsb_Rocksdb():
   # Job conf per EC2 inst
   class ConfEc2Inst:
-    exp_per_ec2inst = 4
+    exp_per_ec2inst = 8
 
     def __init__(self):
       self.params = []
@@ -196,8 +197,8 @@ def Job_Ycsb_A_Rocksdb():
 
   workload_type = "a"
 
-  db_stg_dev = "ebs-st1"
-  #db_stg_dev = "local-ssd1"
+  # db_stg_dev = "ebs-st1"
+  db_stg_dev = "local-ssd1"
 
   if db_stg_dev == "local-ssd1":
     target_iops_range = [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000 \
@@ -219,7 +220,6 @@ def Job_Ycsb_A_Rocksdb():
 
   Cons.P("%d machine(s)" % len(confs_ec2))
   Cons.P(pprint.pformat(confs_ec2, width=100))
-  sys.exit(1)
 
   for conf_ec2 in confs_ec2:
     params = { \
@@ -230,7 +230,7 @@ def Job_Ycsb_A_Rocksdb():
         , "init_script": "mutant-rocksdb"
         , "ami_name": "mutant-rocksdb"
         , "block_storage_devs": []
-        , "ec2_tag_Name": inspect.currentframe().f_code.co_name[4:]
+        , "ec2_tag_Name": inspect.currentframe().f_code.co_name[4:] + "-workload" + workload_type + "-stg_" + db_stg_dev 
         # Initialize local SSD by erasing. Some EC2 instance types need this.
         , "erase_local_ssd": "true"
         , "unzip_quizup_data": "false"
@@ -285,7 +285,8 @@ def Job_Ycsb_A_Rocksdb():
           "evict_cached_data": "true"
           , "memory_limit_in_mb": 5.0 * 1024
           # Mutant doesn't trigger any of these by default: it behaves like unmodified RocksDB.
-          , "ycsb_params": " -p recordcount=10000000 -p operationcount=%s -p readproportion=0.95 -p insertproportion=0.05 -target %d" % (op_cnt, target_iops)
+          # , "ycsb_params": " -p recordcount=10000000 -p operationcount=%s -p readproportion=0.95 -p insertproportion=0.05 -target %d" % (op_cnt, target_iops)
+          , "ycsb_params": " -p recordcount=10000000 -p operationcount=%s -target %d" % (op_cnt, target_iops)
           }
         , "mutant_options": {
           "monitor_temp": "false"
